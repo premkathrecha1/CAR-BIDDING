@@ -1,2 +1,9 @@
-# CAR-BIDDING
-AI Car Advisor is a smart assistant for a car auction platform that helps users make better buying decisions.The system uses AI APIs to generate real-time, practical advice based on Indian market conditions.  This project improves user experience in auctions by reducing risk, saving time, and making decision-making easier.
+AI Car Advisor is an intelligent feature designed for a car auction platform that helps users make better, data-driven decisions while buying vehicles. It acts as a virtual expert that analyzes car details and provides instant recommendations on pricing, inspection, resale value, and bidding strategy.
+
+The system is built using a React-based frontend integrated with a Flask backend, enabling seamless communication with AI models through APIs. Users can interact with the advisor in a chat-based interface, making the experience simple and intuitive even for beginners. The advisor dynamically understands the context of each car listing, including specifications like model, year, mileage, fuel type, transmission, engine performance, and auction details such as current bid and seller information.
+
+One of the key highlights of this project is its ability to provide real-time insights based on Indian market conditions. It evaluates whether the current bid is fair, overpriced, or a good deal, and gives actionable recommendations such as BUY, WAIT, or AVOID. This helps users reduce risk and make confident purchasing decisions during live auctions.
+
+The project also focuses heavily on user experience. It includes a modern chat UI with message rendering, typing indicators, and quick suggestion buttons to guide users. The backend ensures secure API handling and smooth response delivery, while also being flexible enough to switch between paid and free AI providers like OpenRouter.
+
+This AI advisor can be further extended with advanced features such as price prediction models, damage detection using computer vision, and personalized bidding strategies based on user history. Overall, AI Car Advisor transforms traditional car auctions into a smarter, more transparent, and user-friendly experience by combining artificial intelligence with real-world automotive insights.
