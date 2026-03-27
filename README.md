@@ -1,9 +1,16 @@
-AI Car Advisor is an intelligent feature designed for a car auction platform that helps users make better, data-driven decisions while buying vehicles. It acts as a virtual expert that analyzes car details and provides instant recommendations on pricing, inspection, resale value, and bidding strategy.
+# React + Vite
 
-The system is built using a React-based frontend integrated with a Flask backend, enabling seamless communication with AI models through APIs. Users can interact with the advisor in a chat-based interface, making the experience simple and intuitive even for beginners. The advisor dynamically understands the context of each car listing, including specifications like model, year, mileage, fuel type, transmission, engine performance, and auction details such as current bid and seller information.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-One of the key highlights of this project is its ability to provide real-time insights based on Indian market conditions. It evaluates whether the current bid is fair, overpriced, or a good deal, and gives actionable recommendations such as BUY, WAIT, or AVOID. This helps users reduce risk and make confident purchasing decisions during live auctions.
+Currently, two official plugins are available:
 
-The project also focuses heavily on user experience. It includes a modern chat UI with message rendering, typing indicators, and quick suggestion buttons to guide users. The backend ensures secure API handling and smooth response delivery, while also being flexible enough to switch between paid and free AI providers like OpenRouter.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-This AI advisor can be further extended with advanced features such as price prediction models, damage detection using computer vision, and personalized bidding strategies based on user history. Overall, AI Car Advisor transforms traditional car auctions into a smarter, more transparent, and user-friendly experience by combining artificial intelligence with real-world automotive insights.
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
