@@ -1,13 +1,4 @@
-/* ============================================================
-   src/styles/index.css
-   Global stylesheet for BidDrive
-   - Tailwind CSS directives
-   - Custom CSS variables (design tokens)
-   - Component-level styles with Flexbox + Grid
-   - Responsive media queries
-   ============================================================ */
 
-/* ── Tailwind directives ─────────────────────────────────── */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -1,10 +1,3 @@
-/**
- * src/components/DetailPage.jsx
- * ─────────────────────────────────────────────────────────────
- * Full car detail view with photo gallery, spec tabs,
- * bid history, and a sticky bid panel.
- * ─────────────────────────────────────────────────────────────
- */
 
 import { useState } from "react";
 import { Countdown } from "./UI.jsx";

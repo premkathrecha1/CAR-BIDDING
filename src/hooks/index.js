@@ -1,17 +1,3 @@
-/**
- * src/hooks/index.js
- * ============================================================
- * Custom React hooks for BidDrive.
- *
- * Hooks:
- *  - useCountdown     : Live countdown from a future timestamp
- *  - useForm          : Form state + per-field validation
- *  - useRealTimeBids  : Simulates live bid updates every N seconds
- *  - useToast         : Toast notification state manager
- *  - useMediaQuery    : Responsive breakpoint detection
- *  - useLocalStorage  : Persisted state via localStorage
- * ============================================================
- */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { formatCountdown }                           from "../utils/index.js";

@@ -1,23 +1,11 @@
-/**
- * src/components/AuthModal.jsx
- * ─────────────────────────────────────────────────────────────
- * Authentication modal with:
- *   - Google SSO via Firebase Auth (signInWithPopup)
- *   - Email / password sign-in
- *   - New account registration with password strength meter
- * ─────────────────────────────────────────────────────────────
- */
-
-import { useState } from "react";
-import { Field, Input } from "./UI.jsx";
-import AuthService       from "../services/AuthService.js";
-import { useForm }       from "../hooks/index.js";
+import { useState, useMemo } from "react";
+import { Field, Input }  from "./UI.jsx";
+import AuthService        from "../services/AuthService.js";
+import { useForm }        from "../hooks/index.js";
 import { VALIDATORS, getPasswordStrength } from "../utils/index.js";
-import React from 'react';
+import React from "react";
 
-/**
- * @param {{ onAuth: Function, onClose: Function, firebaseReady: boolean }} props
- */
+/** @param {{ onAuth, onClose, firebaseReady }} props */
 export default function AuthModal({ onAuth, onClose, firebaseReady }) {
   const [mode,          setMode]          = useState("login");
   const [loading,       setLoading]       = useState(false);
@@ -26,30 +14,68 @@ export default function AuthModal({ onAuth, onClose, firebaseReady }) {
   const [showCPwd,      setShowCPwd]      = useState(false);
   const [apiError,      setApiError]      = useState("");
 
+  // ── Login form ────────────────────────────────────────────
   const loginForm = useForm(
     { email: "", password: "" },
-    { email: [VALIDATORS.required, VALIDATORS.email], password: [VALIDATORS.required] }
-  );
-
-  const registerForm = useForm(
-    { name: "", email: "", password: "", confirmPwd: "", phone: "", city: "", terms: false },
     {
-      name:        [VALIDATORS.required, VALIDATORS.name],
-      email:       [VALIDATORS.required, VALIDATORS.email],
-      password:    [VALIDATORS.required, VALIDATORS.password],
-      confirmPwd:  [VALIDATORS.required, VALIDATORS.confirmPassword],
-      phone:       [VALIDATORS.required, VALIDATORS.phone],
-      city:        [VALIDATORS.required, VALIDATORS.city],
-      terms:       [VALIDATORS.checked],
+      email:    [VALIDATORS.required, VALIDATORS.email],
+      password: [VALIDATORS.required],
     }
   );
 
-  const pwdStr = getPasswordStrength(registerForm.values.password);
+  // ── Register form — password needed for confirmPwd rule ───
+  // We keep password in plain state so the confirmPwd rule can
+  // close over the current value without going stale.
+  const [regValues, setRegValues] = useState({
+    name: "", email: "", password: "", confirmPwd: "",
+    phone: "", city: "", terms: false,
+  });
 
-  // ── Google SSO ───────────────────────────────────────────
+  // FIX: rebuild rules whenever password changes so confirmPwd
+  // always compares against the CURRENT password value.
+  const registerRules = useMemo(() => ({
+    name:       [VALIDATORS.required, VALIDATORS.name],
+    email:      [VALIDATORS.required, VALIDATORS.email],
+    password:   [VALIDATORS.required, VALIDATORS.password],
+    confirmPwd: [
+      VALIDATORS.required,
+      // Cross-field: compare against live password
+      (v) => v !== regValues.password ? "Passwords do not match." : null,
+    ],
+    phone:      [VALIDATORS.required, VALIDATORS.phone],
+    city:       [VALIDATORS.required, VALIDATORS.city],
+    terms:      [VALIDATORS.checked],
+  }), [regValues.password]);   // rebuild whenever password changes
+
+  const registerForm = useForm(regValues, registerRules);
+
+  // Sync regValues so memos stay current
+  function setReg(field, value) {
+    setRegValues((prev) => ({ ...prev, [field]: value }));
+    registerForm.set(field, value);
+  }
+
+  const pwdStr = getPasswordStrength(regValues.password);
+
+  const Spinner = () => (
+    <span style={{
+      width: 16, height: 16,
+      border: "2px solid rgba(255,255,255,.4)",
+      borderTopColor: "white",
+      borderRadius: "50%",
+      animation: "spin 1s linear infinite",
+      display: "inline-block",
+    }} />
+  );
+
+  // ── Google SSO ────────────────────────────────────────────
   async function handleGoogleSignIn() {
-    if (!firebaseReady) { setApiError("Firebase not configured. Add your credentials to .env.local"); return; }
-    setGoogleLoading(true); setApiError("");
+    if (!firebaseReady) {
+      setApiError("Firebase not configured. Add your credentials to .env.local");
+      return;
+    }
+    setGoogleLoading(true);
+    setApiError("");
     try {
       const user = await AuthService.googleSignIn();
       onAuth(user);
@@ -59,58 +85,74 @@ export default function AuthModal({ onAuth, onClose, firebaseReady }) {
     setGoogleLoading(false);
   }
 
-  // ── Email sign-in ────────────────────────────────────────
+  // ── Email login ───────────────────────────────────────────
   async function handleLogin() {
-    if (!loginForm.submit()) return;
-    setLoading(true); setApiError("");
+    if (!loginForm.submit()) return;           // validate all fields
+    setLoading(true);
+    setApiError("");
     try {
       if (firebaseReady) {
-        const user = await AuthService.emailSignIn(loginForm.values.email, loginForm.values.password);
-        onAuth(user);
+        const user = await AuthService.emailSignIn(
+          loginForm.values.email,
+          loginForm.values.password
+        );
+        onAuth(user);                          // ← closes modal + opens bid if pending
       } else {
-        // Demo fallback (no Firebase)
+        // Demo mode fallback
         await new Promise((r) => setTimeout(r, 800));
-        if (loginForm.values.email === "rahul@example.com" && loginForm.values.password === "Pass@123") {
-          onAuth({ id: "demo_u1", uid: "demo_u1", name: "Rahul Sharma", email: "rahul@example.com", avatar: "RS", city: "Mumbai", phone: "+91 98765 43210", bidsPlaced: 12, wonAuctions: 3, verified: true });
+        if (
+          loginForm.values.email    === "rahul@example.com" &&
+          loginForm.values.password === "Pass@123"
+        ) {
+          onAuth({
+            id: "demo_u1", uid: "demo_u1",
+            name: "Rahul Sharma", email: "rahul@example.com",
+            avatar: "RS", city: "Mumbai", phone: "+91 98765 43210",
+            bidsPlaced: 12, wonAuctions: 3, verified: true,
+          });
         } else {
-          throw new Error("Incorrect email or password. (Demo: rahul@example.com / Pass@123)");
+          throw new Error("Incorrect email or password.\n(Demo: rahul@example.com / Pass@123)");
         }
       }
     } catch (e) {
       const msg =
-        e.code === "auth/invalid-credential"  ? "Incorrect email or password."               :
-        e.code === "auth/user-not-found"       ? "No account found with this email."          :
-        e.code === "auth/too-many-requests"    ? "Too many failed attempts. Try again later." :
+        e.code === "auth/invalid-credential"  ? "Incorrect email or password."              :
+        e.code === "auth/user-not-found"       ? "No account found with this email."         :
+        e.code === "auth/too-many-requests"    ? "Too many failed attempts. Try again later.":
         e.message || "Sign-in failed.";
       setApiError(msg);
     }
     setLoading(false);
   }
 
-  // ── Registration ─────────────────────────────────────────
+  // ── Registration ──────────────────────────────────────────
   async function handleRegister() {
-    if (!registerForm.submit()) return;
-    setLoading(true); setApiError("");
+    if (!registerForm.submit()) return;        // validate all fields
+    setLoading(true);
+    setApiError("");
     try {
       if (firebaseReady) {
         const user = await AuthService.register({
-          name:     registerForm.values.name,
-          email:    registerForm.values.email,
-          password: registerForm.values.password,
-          phone:    registerForm.values.phone,
-          city:     registerForm.values.city,
+          name:     regValues.name,
+          email:    regValues.email,
+          password: regValues.password,
+          phone:    regValues.phone,
+          city:     regValues.city,
         });
         onAuth(user);
       } else {
         await new Promise((r) => setTimeout(r, 1000));
         onAuth({
-          id:          "demo_" + Date.now(), uid: "demo_" + Date.now(),
-          name:        registerForm.values.name,
-          email:       registerForm.values.email,
-          avatar:      registerForm.values.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
-          phone:       registerForm.values.phone,
-          city:        registerForm.values.city,
-          bidsPlaced:  0, wonAuctions: 0, verified: false,
+          id:          "demo_" + Date.now(),
+          uid:         "demo_" + Date.now(),
+          name:        regValues.name,
+          email:       regValues.email,
+          avatar:      regValues.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
+          phone:       regValues.phone,
+          city:        regValues.city,
+          bidsPlaced:  0,
+          wonAuctions: 0,
+          verified:    false,
         });
       }
     } catch (e) {
@@ -123,14 +165,15 @@ export default function AuthModal({ onAuth, onClose, firebaseReady }) {
     setLoading(false);
   }
 
-  const Spinner = () => (
-    <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,.4)", borderTopColor: "white", borderRadius: "50%", animation: "spin 1s linear infinite", display: "inline-block" }} />
-  );
-
+  // ── Render ────────────────────────────────────────────────
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box auth-modal" onClick={(e) => e.stopPropagation()} style={{ overflow: "auto", maxHeight: "95vh" }}>
-        {/* Header */}
+      <div
+        className="modal-box auth-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ overflow: "auto", maxHeight: "95vh" }}
+      >
+        {/* ── Header ── */}
         <div style={{ padding: "28px 28px 0" }}>
           <div style={{ textAlign: "center", marginBottom: 20 }}>
             <div style={{ fontSize: 36, marginBottom: 6 }}>🏁</div>
@@ -138,16 +181,23 @@ export default function AuthModal({ onAuth, onClose, firebaseReady }) {
             <div style={{ color: "var(--text3)", fontSize: 13 }}>India's Premier Car Auction Platform</div>
             {!firebaseReady && (
               <div style={{ marginTop: 8, background: "var(--amber-pale)", border: "1px solid #fde68a", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: 12, color: "#92400e" }}>
-                ⚠ Demo mode — add Firebase config to enable real authentication
+                ⚠ Demo mode — add Firebase config to enable real auth
               </div>
             )}
           </div>
 
           {/* Google SSO */}
-          <button className="btn btn-google btn-lg w-full" onClick={handleGoogleSignIn} disabled={googleLoading}
-            style={{ marginBottom: 16, gap: 10, width: "100%" }}>
+          <button
+            className="btn btn-google btn-lg w-full"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            style={{ marginBottom: 16, gap: 10, width: "100%" }}
+          >
             {googleLoading ? (
-              <><span style={{ width: 16, height: 16, border: "2px solid #dadce0", borderTopColor: "#4285f4", borderRadius: "50%", animation: "spin 1s linear infinite", display: "inline-block" }} /> Signing in with Google...</>
+              <>
+                <span style={{ width: 16, height: 16, border: "2px solid #dadce0", borderTopColor: "#4285f4", borderRadius: "50%", animation: "spin 1s linear infinite", display: "inline-block" }} />
+                Signing in with Google...
+              </>
             ) : (
               <>
                 <svg width="18" height="18" viewBox="0 0 24 24">
@@ -173,9 +223,11 @@ export default function AuthModal({ onAuth, onClose, firebaseReady }) {
           </div>
         </div>
 
-        {/* Form body */}
+        {/* ── Form body ── */}
         <div style={{ padding: 28 }}>
-          {mode === "login" ? (
+
+          {/* ── LOGIN ── */}
+          {mode === "login" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <Field label="Email Address" required error={loginForm.touched.email && loginForm.errors.email}>
                 <Input field="email" form={loginForm} type="email" placeholder="your@email.com" />
@@ -183,43 +235,151 @@ export default function AuthModal({ onAuth, onClose, firebaseReady }) {
               <Field label="Password" required error={loginForm.touched.password && loginForm.errors.password}>
                 <div style={{ position: "relative" }}>
                   <Input field="password" form={loginForm} type={showPwd ? "text" : "password"} placeholder="••••••••" />
-                  <button type="button" onClick={() => setShowPwd((p) => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", fontSize: 16 }}>{showPwd ? "🙈" : "👁"}</button>
+                  <button type="button" onClick={() => setShowPwd((p) => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", fontSize: 16 }}>
+                    {showPwd ? "🙈" : "👁"}
+                  </button>
                 </div>
               </Field>
-              {apiError && <div style={{ background: "var(--red-pale)", border: "1px solid #fca5a5", color: "var(--red)", padding: "10px 14px", borderRadius: "var(--radius-sm)", fontSize: 13 }}>⚠ {apiError}</div>}
-              {!firebaseReady && <div style={{ background: "var(--blue-pale)", border: "1px solid var(--blue-mid)", borderRadius: "var(--radius-sm)", padding: "10px 14px", fontSize: 12, color: "var(--text3)" }}>💡 Demo: <strong>rahul@example.com</strong> / <strong>Pass@123</strong></div>}
+
+              {apiError && (
+                <div style={{ background: "var(--red-pale)", border: "1px solid #fca5a5", color: "var(--red)", padding: "10px 14px", borderRadius: "var(--radius-sm)", fontSize: 13 }}>
+                  ⚠ {apiError}
+                </div>
+              )}
+
+              {!firebaseReady && (
+                <div style={{ background: "var(--blue-pale)", border: "1px solid var(--blue-mid)", borderRadius: "var(--radius-sm)", padding: "10px 14px", fontSize: 12, color: "var(--text3)" }}>
+                  💡 Demo: <strong>rahul@example.com</strong> / <strong>Pass@123</strong>
+                </div>
+              )}
+
               <button className="btn btn-primary btn-lg w-full" onClick={handleLogin} disabled={loading}>
                 {loading ? <><Spinner /> Signing in...</> : "Sign In →"}
               </button>
             </div>
-          ) : (
+          )}
+
+          {/* ── REGISTER ── */}
+          {mode === "register" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <Field label="Full Name" required error={registerForm.touched.name && registerForm.errors.name}><Input field="name" form={registerForm} placeholder="Rahul Sharma" /></Field>
-                <Field label="City" required error={registerForm.touched.city && registerForm.errors.city}><Input field="city" form={registerForm} placeholder="Mumbai" /></Field>
+                <Field label="Full Name" required error={registerForm.touched.name && registerForm.errors.name}>
+                  {/* FIX: use setReg to keep regValues in sync */}
+                  <input
+                    className={`field-input${registerForm.touched.name && registerForm.errors.name ? " error" : ""}`}
+                    value={regValues.name}
+                    placeholder="Rahul Sharma"
+                    onChange={(e) => setReg("name", e.target.value)}
+                    onBlur={() => registerForm.touch("name")}
+                  />
+                </Field>
+                <Field label="City" required error={registerForm.touched.city && registerForm.errors.city}>
+                  <input
+                    className={`field-input${registerForm.touched.city && registerForm.errors.city ? " error" : ""}`}
+                    value={regValues.city}
+                    placeholder="Mumbai"
+                    onChange={(e) => setReg("city", e.target.value)}
+                    onBlur={() => registerForm.touch("city")}
+                  />
+                </Field>
               </div>
-              <Field label="Email Address" required error={registerForm.touched.email && registerForm.errors.email}><Input field="email" form={registerForm} type="email" placeholder="your@email.com" /></Field>
-              <Field label="Phone Number" required error={registerForm.touched.phone && registerForm.errors.phone} hint="+91 98765 43210"><Input field="phone" form={registerForm} type="tel" placeholder="+91 98765 43210" /></Field>
-              <Field label="Password" required error={registerForm.touched.password && registerForm.errors.password}
-                hint={registerForm.values.password && pwdStr.label ? <span style={{ color: pwdStr.color, fontWeight: 600 }}>Strength: {pwdStr.label}</span> : "Min 8 chars + uppercase + number + special"}>
-                <div style={{ position: "relative" }}>
-                  <Input field="password" form={registerForm} type={showPwd ? "text" : "password"} placeholder="Min 8 chars + special" />
-                  <button type="button" onClick={() => setShowPwd((p) => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", fontSize: 16 }}>{showPwd ? "🙈" : "👁"}</button>
-                </div>
-                {registerForm.values.password && <div className="field-strength"><div className="field-strength-bar" style={{ width: `${pwdStr.percent}%`, background: pwdStr.color }} /></div>}
+
+              <Field label="Email Address" required error={registerForm.touched.email && registerForm.errors.email}>
+                <input
+                  className={`field-input${registerForm.touched.email && registerForm.errors.email ? " error" : ""}`}
+                  type="email" value={regValues.email} placeholder="your@email.com"
+                  onChange={(e) => setReg("email", e.target.value)}
+                  onBlur={() => registerForm.touch("email")}
+                />
               </Field>
-              <Field label="Confirm Password" required error={registerForm.touched.confirmPwd && registerForm.errors.confirmPwd}>
+
+              <Field label="Phone Number" required error={registerForm.touched.phone && registerForm.errors.phone} hint="+91 98765 43210">
+                <input
+                  className={`field-input${registerForm.touched.phone && registerForm.errors.phone ? " error" : ""}`}
+                  type="tel" value={regValues.phone} placeholder="+91 98765 43210"
+                  onChange={(e) => setReg("phone", e.target.value)}
+                  onBlur={() => registerForm.touch("phone")}
+                />
+              </Field>
+
+              <Field
+                label="Password" required
+                error={registerForm.touched.password && registerForm.errors.password}
+                hint={
+                  regValues.password && pwdStr.label
+                    ? <span style={{ color: pwdStr.color, fontWeight: 600 }}>Strength: {pwdStr.label}</span>
+                    : "Min 8 chars + uppercase + number + special"
+                }
+              >
                 <div style={{ position: "relative" }}>
-                  <Input field="confirmPwd" form={registerForm} type={showCPwd ? "text" : "password"} placeholder="Re-enter password" />
-                  <button type="button" onClick={() => setShowCPwd((p) => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", fontSize: 16 }}>{showCPwd ? "🙈" : "👁"}</button>
+                  <input
+                    className={`field-input${registerForm.touched.password && registerForm.errors.password ? " error" : ""}`}
+                    type={showPwd ? "text" : "password"}
+                    value={regValues.password}
+                    placeholder="Min 8 chars + special"
+                    onChange={(e) => setReg("password", e.target.value)}
+                    onBlur={() => registerForm.touch("password")}
+                  />
+                  <button type="button" onClick={() => setShowPwd((p) => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", fontSize: 16 }}>
+                    {showPwd ? "🙈" : "👁"}
+                  </button>
+                </div>
+                {regValues.password && (
+                  <div className="field-strength">
+                    <div className="field-strength-bar" style={{ width: `${pwdStr.percent}%`, background: pwdStr.color }} />
+                  </div>
+                )}
+              </Field>
+
+              {/* FIX: confirmPwd uses setReg so cross-field rule sees current password */}
+              <Field
+                label="Confirm Password" required
+                error={registerForm.touched.confirmPwd && registerForm.errors.confirmPwd}
+                success={
+                  registerForm.touched.confirmPwd && !registerForm.errors.confirmPwd && regValues.confirmPwd
+                    ? "Passwords match ✓" : ""
+                }
+              >
+                <div style={{ position: "relative" }}>
+                  <input
+                    className={`field-input${registerForm.touched.confirmPwd && registerForm.errors.confirmPwd ? " error" : registerForm.touched.confirmPwd && !registerForm.errors.confirmPwd && regValues.confirmPwd ? " success" : ""}`}
+                    type={showCPwd ? "text" : "password"}
+                    value={regValues.confirmPwd}
+                    placeholder="Re-enter password"
+                    onChange={(e) => setReg("confirmPwd", e.target.value)}
+                    onBlur={() => registerForm.touch("confirmPwd")}
+                  />
+                  <button type="button" onClick={() => setShowCPwd((p) => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", fontSize: 16 }}>
+                    {showCPwd ? "🙈" : "👁"}
+                  </button>
                 </div>
               </Field>
-              <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", padding: "10px 12px", border: `1.5px solid ${registerForm.touched.terms && registerForm.errors.terms ? "var(--red)" : "var(--border)"}`, borderRadius: "var(--radius-sm)", background: registerForm.values.terms ? "var(--blue-pale)" : "white" }}>
-                <input type="checkbox" checked={!!registerForm.values.terms} onChange={(e) => registerForm.set("terms", e.target.checked)} onBlur={() => registerForm.touch("terms")} style={{ accentColor: "var(--blue)", marginTop: 2, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: "var(--text2)" }}>I agree to BidDrive's <span style={{ color: "var(--blue)", fontWeight: 600 }}>Terms of Service</span> and <span style={{ color: "var(--blue)", fontWeight: 600 }}>Privacy Policy</span></span>
+
+              <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", padding: "10px 12px", border: `1.5px solid ${registerForm.touched.terms && registerForm.errors.terms ? "var(--red)" : "var(--border)"}`, borderRadius: "var(--radius-sm)", background: regValues.terms ? "var(--blue-pale)" : "white" }}>
+                <input
+                  type="checkbox"
+                  checked={!!regValues.terms}
+                  onChange={(e) => setReg("terms", e.target.checked)}
+                  onBlur={() => registerForm.touch("terms")}
+                  style={{ accentColor: "var(--blue)", marginTop: 2, flexShrink: 0 }}
+                />
+                <span style={{ fontSize: 13, color: "var(--text2)" }}>
+                  I agree to BidDrive's{" "}
+                  <span style={{ color: "var(--blue)", fontWeight: 600 }}>Terms of Service</span>
+                  {" "}and{" "}
+                  <span style={{ color: "var(--blue)", fontWeight: 600 }}>Privacy Policy</span>
+                </span>
               </label>
-              {registerForm.touched.terms && registerForm.errors.terms && <span className="field-error">⚠ {registerForm.errors.terms}</span>}
-              {apiError && <div style={{ background: "var(--red-pale)", border: "1px solid #fca5a5", color: "var(--red)", padding: "10px 14px", borderRadius: "var(--radius-sm)", fontSize: 13 }}>⚠ {apiError}</div>}
+              {registerForm.touched.terms && registerForm.errors.terms && (
+                <span className="field-error">⚠ {registerForm.errors.terms}</span>
+              )}
+
+              {apiError && (
+                <div style={{ background: "var(--red-pale)", border: "1px solid #fca5a5", color: "var(--red)", padding: "10px 14px", borderRadius: "var(--radius-sm)", fontSize: 13 }}>
+                  ⚠ {apiError}
+                </div>
+              )}
+
               <button className="btn btn-green btn-lg w-full" onClick={handleRegister} disabled={loading}>
                 {loading ? <><Spinner /> Creating Account...</> : "Create Account →"}
               </button>

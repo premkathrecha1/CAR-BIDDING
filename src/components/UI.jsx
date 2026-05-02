@@ -1,12 +1,3 @@
-/**
- * src/components/UI.jsx
- * ─────────────────────────────────────────────────────────────
- * Shared primitive components used throughout the app:
- *   - Field      — labelled form field wrapper
- *   - Input      — controlled input tied to useForm
- *   - Countdown  — live countdown timer display
- * ─────────────────────────────────────────────────────────────
- */
 
 import { useCountdown } from "../hooks/index.js";
 import React from 'react';

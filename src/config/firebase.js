@@ -1,14 +1,3 @@
-/**
- * src/config/firebase.js
- * ─────────────────────────────────────────────────────────────
- * Firebase initialisation — lazy singleton pattern.
- * All Firebase SDK methods are exposed via window._fs after init.
- *
- * Usage:
- *   import { initFirebase } from '../config/firebase';
- *   const { db, auth } = await initFirebase();
- * ─────────────────────────────────────────────────────────────
- */
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDE-aBnNvDf1EAQ27gAbdR_18uFr5B55Io",

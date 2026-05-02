@@ -1,10 +1,3 @@
-/**
- * src/components/CarCard.jsx
- * ─────────────────────────────────────────────────────────────
- * Auction listing card displayed in the main grid.
- * Shows photo, key specs, current bid, countdown, and action buttons.
- * ─────────────────────────────────────────────────────────────
- */
 
 import { Countdown } from "./UI.jsx";
 import { CAR_PHOTOS, BADGE_STYLES, FALLBACK_IMG } from "../models/index.js";

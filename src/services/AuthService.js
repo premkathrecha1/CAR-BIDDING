@@ -1,11 +1,4 @@
-/**
- * src/services/AuthService.js
- * ─────────────────────────────────────────────────────────────
- * Firebase Authentication service.
- * Wraps all sign-in, registration, and session operations.
- * All methods write/read user profiles via UsersRepo.
- * ─────────────────────────────────────────────────────────────
- */
+
 
 import { UsersRepo } from "./repositories.js";
 import { getInitials } from "../utils/index.js";

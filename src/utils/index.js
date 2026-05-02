@@ -1,16 +1,3 @@
-/**
- * src/utils/index.js
- * ============================================================
- * Utility functions shared across the BidDrive application.
- * Sections:
- *   1. Formatters    — currency, countdown, time-ago, initials
- *   2. Validators    — field-level validation functions
- *   3. Export helpers — CSV, JSON, print report
- *   4. Misc          — dateStamp, clamp, parseCSV
- * ============================================================
- */
-
-// ── 1. FORMATTERS ────────────────────────────────────────────
 
 /**
  * Formats a number (INR) into compact Indian notation.

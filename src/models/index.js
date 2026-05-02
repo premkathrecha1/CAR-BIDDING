@@ -1,11 +1,4 @@
-/**
- * src/models/index.js
- * ============================================================
- * Client-side data models for BidDrive.
- * Defines the shape of data objects used throughout the app.
- * In a full-stack setup these mirror the backend Firestore schema.
- * ============================================================
- */
+
 
 // ── Car Model ────────────────────────────────────────────────
 /**

@@ -1,19 +1,4 @@
-/**
- * src/services/RazorpayService.js
- * ─────────────────────────────────────────────────────────────
- * Razorpay payment gateway service.
- *
- * Flow:
- *   1. Load Razorpay checkout.js SDK dynamically (once)
- *   2. Open the Razorpay modal for bid deposit collection
- *   3. On success, write a payment record to Firestore
- *   4. Resolve with { paymentId, depositAmount }
- *
- * NOTE: In production, create a Razorpay Order on your backend
- * (POST /api/orders) and pass the orderId here for proper
- * signature verification. See: https://razorpay.com/docs/payments/orders/
- * ─────────────────────────────────────────────────────────────
- */
+
 
 import { RAZORPAY_KEY_ID, DEPOSIT_PERCENT } from "../config/razorpay.js";
 import { PaymentsRepo }                      from "./repositories.js";

@@ -1,9 +1,4 @@
-/**
- * src/components/Gallery.jsx
- * ─────────────────────────────────────────────────────────────
- * Full-screen photo gallery overlay with keyboard navigation.
- * ─────────────────────────────────────────────────────────────
- */
+
 import { useState, useEffect } from "react";
 import { FALLBACK_IMG } from "../models/index.js";
 
