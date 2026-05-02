@@ -1,16 +1,4 @@
-/**
- * src/components/AdminPanel.jsx
- * ─────────────────────────────────────────────────────────────
- * Full admin panel with 5 live-connected sections:
- *   1. Dashboard  — real-time stats
- *   2. Cars       — full CRUD (add/edit/delete/extend)
- *   3. Users      — verify, ban, search
- *   4. Bids       — view all, delete fraudulent
- *   5. Payments   — view all, mark refunded
- *
- * Access: only users with role="admin" in Firestore users/{uid}
- * ─────────────────────────────────────────────────────────────
- */
+
 import React from 'react';
 
 import { useState, useEffect, useCallback } from "react";
