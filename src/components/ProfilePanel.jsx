@@ -1,3 +1,10 @@
+/**
+ * src/components/ProfilePanel.jsx
+ * ─────────────────────────────────────────────────────────────
+ * Slide-in right panel showing user profile, leading bids,
+ * bid history, and sign-out button.
+ * ─────────────────────────────────────────────────────────────
+ */
 
 import { Countdown } from "./UI.jsx";
 import { formatCurrency, timeAgo } from "../utils/index.js";
