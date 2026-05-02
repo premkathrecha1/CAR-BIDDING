@@ -1,60 +1,78 @@
-import { useState, useEffect, useRef } from "react";
+
+import React from 'react';
+
+import { useState, useEffect }     from "react";
 import "./styles/global.css";
-import React from "react";
 
-import { initFirebase }                     from "./config/firebase.js";
-import { CarsRepo, BidsRepo, UsersRepo }    from "./services/repositories.js";
-import AuthService                           from "./services/AuthService.js";
+// ── Config ────────────────────────────────────────────────────
+import { initFirebase }            from "./config/firebase.js";
+
+// ── Services ──────────────────────────────────────────────────
+import { CarsRepo, BidsRepo, UsersRepo } from "./services/repositories.js";
+import AuthService                        from "./services/AuthService.js";
+
+// ── Hooks ─────────────────────────────────────────────────────
 import { useRealTimeBids, useToast, useLocalStorage } from "./hooks/index.js";
-import { SEED_CARS }                         from "./models/index.js";
-import { formatCurrency }                    from "./utils/index.js";
 
+// ── Models / static data ──────────────────────────────────────
+import { SEED_CARS }               from "./models/index.js";
+
+// ── Utils ─────────────────────────────────────────────────────
+import { formatCurrency }          from "./utils/index.js";
+
+// ── Components ────────────────────────────────────────────────
 import CarCard      from "./components/CarCard.jsx";
 import DetailPage   from "./components/DetailPage.jsx";
 import AuthModal    from "./components/AuthModal.jsx";
 import BidModal     from "./components/BidModal.jsx";
 import AIAdvisor    from "./components/AIAdvisor.jsx";
 import ProfilePanel from "./components/ProfilePanel.jsx";
+import AdminPanel   from "./components/AdminPanel.jsx";
 
+/**
+ * Emails that get admin access.
+ * In production, set user.role = "admin" in Firestore instead.
+ */
+const ADMIN_EMAILS = [
+  "premkathrecha07@gmail.com",
+  // add your email here for local testing:
+  // "yourname@gmail.com",
+];
+
+// ────────────────────────────────────────────────────────────────
 export default function App() {
-  // ── Core data ─────────────────────────────────────────────
-  const [cars,       setCars]       = useState(SEED_CARS);
-  const [bidHistory, setBidHistory] = useState({});
+  // ── Core data ──────────────────────────────────────────────
+  const [cars,        setCars]        = useState(SEED_CARS);
+  const [bidHistory,  setBidHistory]  = useState({});
 
-  // ── Auth ──────────────────────────────────────────────────
-  const [user,           setUser]           = useState(null);
-  const [firebaseReady,  setFirebaseReady]  = useState(false);
+  // ── Auth ───────────────────────────────────────────────────
+  const [user,          setUser]          = useState(null);
+  const [firebaseReady, setFirebaseReady] = useState(false);
 
-  // Keep a ref so callbacks always see latest user without stale closure
-  const userRef = useRef(null);
-  function applyUser(u) {
-    userRef.current = u;
-    setUser(u);
-  }
+  // ── UI state ───────────────────────────────────────────────
+  const [modal,      setModal]      = useState(null); // "auth"|"bid"|"ai"|"profile"|null
+  const [bidCar,     setBidCar]     = useState(null);
+  const [aiCar,      setAiCar]      = useState(null);
+  const [detailCar,  setDetailCar]  = useState(null);
+  const [tab,        setTab]        = useState("live"); // "live"|"watchlist"
+  const [notif,      setNotif]      = useState(null);   // live bid notification
+  const [adminOpen,  setAdminOpen]  = useState(false);  // admin panel overlay
 
-  // ── UI state ──────────────────────────────────────────────
-  const [modal,         setModal]         = useState(null); // "auth"|"bid"|"ai"|"profile"|null
-  const [bidCar,        setBidCar]        = useState(null);
-  const [aiCar,         setAiCar]         = useState(null);
-  const [detailCar,     setDetailCar]     = useState(null);
-  const [tab,           setTab]           = useState("live");
-  const [notif,         setNotif]         = useState(null);
+  // Admin: Firestore role OR email whitelist
+  const isAdmin = !!(user && (user.role === "admin" || ADMIN_EMAILS.includes(user.email)));
 
-  // ── FIX 1: pendingBidCar ──────────────────────────────────
-  // If user clicks "Bid Now" while logged out, we store the car here.
-  // After successful login, onAuth opens the bid modal automatically.
-  const [pendingBidCar, setPendingBidCar] = useState(null);
-  const pendingBidRef = useRef(null);          // ref for inside callbacks
-
-  // ── Filters ───────────────────────────────────────────────
+  // ── Filters ────────────────────────────────────────────────
   const [search,     setSearch]     = useState("");
   const [filterFuel, setFilterFuel] = useState("all");
   const [sortBy,     setSortBy]     = useState("ending");
 
-  const [watchlist, setWatchlist] = useLocalStorage("bd_watchlist", []);
-  const { toast, showToast }      = useToast();
+  // ── Persisted watchlist ────────────────────────────────────
+  const [watchlist, setWatchlist]   = useLocalStorage("bd_watchlist", []);
 
-  // ── Firebase boot ─────────────────────────────────────────
+  // ── Toast ──────────────────────────────────────────────────
+  const { toast, showToast }        = useToast();
+
+  // ── Firebase boot ──────────────────────────────────────────
   useEffect(() => {
     let unsubCars = () => {};
     let unsubAuth = () => {};
@@ -65,16 +83,21 @@ export default function App() {
         if (!db || !auth) return;
 
         setFirebaseReady(true);
+
+        // Seed Firestore with demo cars on first run
         await CarsRepo.seedIfEmpty(SEED_CARS);
 
-        unsubCars = CarsRepo.subscribe((fc) => {
-          if (fc.length > 0) setCars(fc);
+        // Real-time car subscription
+        unsubCars = CarsRepo.subscribe((firestoreCars) => {
+          if (firestoreCars.length > 0) setCars(firestoreCars);
         });
 
+        // Load all bids from Firestore
         const allBids = await BidsRepo.getAll();
         setBidHistory(allBids);
 
-        unsubAuth = AuthService.onAuthChange(applyUser);
+        // Auth state subscription
+        unsubAuth = AuthService.onAuthChange(setUser);
       } catch (err) {
         console.warn("Firebase boot error:", err.message);
       }
@@ -84,42 +107,48 @@ export default function App() {
     return () => { unsubCars(); unsubAuth(); };
   }, []);
 
-  // ── Real-time bid simulation ──────────────────────────────
+  // ── Real-time bid simulation ────────────────────────────────
+  // Supplements live Firestore data with animated "other user" bids.
   useRealTimeBids(
     cars,
     (carId, amount, bid) => {
-      setCars((p) => p.map((c) => c.id === carId ? { ...c, currentBid: amount } : c));
-      setBidHistory((p) => ({ ...p, [String(carId)]: [bid, ...(p[String(carId)] || [])] }));
+      setCars((prev) => prev.map((c) => c.id === carId ? { ...c, currentBid: amount } : c));
+      setBidHistory((prev) => ({ ...prev, [String(carId)]: [bid, ...(prev[String(carId)] || [])] }));
     },
-    (payload) => {
-      setNotif(payload);
+    (notifPayload) => {
+      setNotif(notifPayload);
       setTimeout(() => setNotif(null), 4500);
     }
   );
 
-  // ── Bid handler ───────────────────────────────────────────
+  // ── Bid handler ────────────────────────────────────────────
+  /**
+   * Called after a bid is confirmed (and payment collected).
+   * Performs an optimistic UI update, then writes to Firestore.
+   */
   async function handleBid(carId, amount, bidUser, payment) {
-    const key = String(carId);
+    const carIdStr = String(carId);
     const bid = {
       userId:        bidUser.uid || bidUser.id,
       userName:      bidUser.name,
       amount,
-      carId:         key,
+      carId:         carIdStr,
       time:          Date.now(),
       paymentId:     payment?.paymentId     || null,
       depositAmount: payment?.depositAmount || null,
     };
 
-    // Optimistic UI
-    setCars((p) => p.map((c) => String(c.id) === key ? { ...c, currentBid: amount } : c));
-    setBidHistory((p) => ({ ...p, [key]: [bid, ...(p[key] || [])] }));
-    setUser((p) => p ? { ...p, bidsPlaced: (p.bidsPlaced || 0) + 1 } : p);
+    // Optimistic UI — instant feedback
+    setCars((prev) => prev.map((c) => String(c.id) === carIdStr ? { ...c, currentBid: amount } : c));
+    setBidHistory((prev) => ({ ...prev, [carIdStr]: [bid, ...(prev[carIdStr] || [])] }));
+    setUser((prev) => ({ ...prev, bidsPlaced: (prev?.bidsPlaced || 0) + 1 }));
     showToast(`🏆 Bid of ${formatCurrency(amount)} placed! You're the highest bidder.`);
 
+    // Persist to Firestore
     if (firebaseReady) {
       try {
         await BidsRepo.create(bid);
-        await CarsRepo.updateBid(key, amount);
+        await CarsRepo.updateBid(carIdStr, amount);
         await UsersRepo.incrementBids(bidUser.uid || bidUser.id);
       } catch (err) {
         console.error("Firestore bid write error:", err);
@@ -127,75 +156,35 @@ export default function App() {
     }
   }
 
-  // ── FIX 2: openBid — no stale closure on user ─────────────
-  /**
-   * Called from CarCard / DetailPage when user clicks "Bid Now".
-   * If not logged in: save car as pending, open auth modal.
-   * If logged in: open bid modal directly.
-   */
+  // ── Helpers ────────────────────────────────────────────────
   function openBid(car) {
-    if (!userRef.current) {
-      // Save car so we can open bid modal after login
-      pendingBidRef.current = car;
-      setPendingBidCar(car);
-      setModal("auth");
-      return;
-    }
-    // Already logged in — open bid immediately
+    if (!user) { setModal("auth"); return; }
     setBidCar(car);
     setModal("bid");
   }
 
-  // ── FIX 3: onAuth — auto-open bid if pending ─────────────
-  /**
-   * Called by AuthModal after successful login/register.
-   * If user arrived here via "Bid Now" (pendingBidCar set),
-   * close auth and immediately open the bid modal.
-   */
-  function onAuth(u) {
-    applyUser(u);
-    showToast(`Welcome, ${u.name?.split(" ")[0]}! 👋`);
-
-    const pending = pendingBidRef.current;
-    if (pending) {
-      // Clear pending first
-      pendingBidRef.current = null;
-      setPendingBidCar(null);
-      // Open bid modal for the car they originally wanted
-      setBidCar(pending);
-      setModal("bid");
-    } else {
-      setModal(null);
-    }
+  function toggleWatch(id) {
+    setWatchlist((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
-  // ── Logout ────────────────────────────────────────────────
   async function handleLogout() {
     await AuthService.signOut();
-    applyUser(null);
+    setUser(null);
     setModal(null);
     showToast("Signed out successfully.");
   }
 
-  // ── Helpers ───────────────────────────────────────────────
   function getBids(carId) {
     return bidHistory[carId] || bidHistory[String(carId)] || [];
   }
 
-  function toggleWatch(id) {
-    setWatchlist((p) =>
-      p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
-    );
-  }
-
-  // ── Filter + sort ─────────────────────────────────────────
+  // ── Filtered / sorted car list ─────────────────────────────
   const shownCars = cars
     .filter((c) => filterFuel === "all" || c.fuel === filterFuel)
     .filter((c) => tab === "watchlist" ? watchlist.includes(c.id) : true)
     .filter((c) => {
       if (!search) return true;
-      return `${c.make} ${c.model} ${c.year} ${c.color} ${c.location}`
-        .toLowerCase().includes(search.toLowerCase());
+      return `${c.make} ${c.model} ${c.year} ${c.color} ${c.location}`.toLowerCase().includes(search.toLowerCase());
     })
     .sort((a, b) => {
       if (sortBy === "ending")     return a.endTime - b.endTime;
@@ -205,23 +194,17 @@ export default function App() {
       return 0;
     });
 
-  const totalBids = Object.values(bidHistory).reduce((s, a) => s + a.length, 0);
+  const totalBids = Object.values(bidHistory).reduce((s, arr) => s + arr.length, 0);
 
-  // ── Render ────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────
   return (
     <>
       {/* ── HEADER ── */}
-      <header
-        style={{ background: "white", borderBottom: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", position: "sticky", top: 0, zIndex: 500 }}
-        className="no-print"
-      >
+      <header style={{ background: "white", borderBottom: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", position: "sticky", top: 0, zIndex: 500 }} className="no-print">
         <div className="container">
           <div className="header-inner">
             {/* Logo */}
-            <div
-              style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
-              onClick={() => setDetailCar(null)}
-            >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => setDetailCar(null)}>
               <span style={{ fontSize: 24 }}>🏁</span>
               <div>
                 <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20, color: "var(--blue)", lineHeight: 1.1 }}>BidDrive</div>
@@ -233,37 +216,33 @@ export default function App() {
               {/* Firebase status */}
               <div className={`fb-status ${firebaseReady ? "live" : "demo"} header-stat`}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: firebaseReady ? "#22c55e" : "#f59e0b", display: "inline-block" }} />
-               
+                {firebaseReady ? "🔥 Firebase Live" : "Demo Mode"}
               </div>
-
               {/* Live count */}
               <div className="header-stat flex items-center gap-4" style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 20, padding: "5px 12px", fontSize: 12 }}>
-                <span className="live-dot" />
-                <span style={{ color: "var(--text3)", fontWeight: 600 }}>{cars.filter((c) => c.endTime > Date.now()).length} Live</span>
+                <span className="live-dot" /><span style={{ color: "var(--text3)", fontWeight: 600 }}>{cars.filter((c) => c.endTime > Date.now()).length} Live</span>
               </div>
+              <div className="header-stat" style={{ fontSize: 12, color: "var(--text3)" }}><strong style={{ color: "var(--text)" }}>{totalBids}</strong> bids</div>
 
-              <div className="header-stat" style={{ fontSize: 12, color: "var(--text3)" }}>
-                <strong style={{ color: "var(--text)" }}>{totalBids}</strong> bids
-              </div>
+              {/* ── Admin Panel button — only for admin users ── */}
+              {isAdmin && (
+                <button onClick={() => setAdminOpen(true)}
+                  style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:8, border:"none", background:"linear-gradient(135deg,#0f172a,#1e293b)", color:"white", cursor:"pointer", fontWeight:700, fontSize:12, fontFamily:"inherit" }}>
+                  ⚙️ Admin
+                </button>
+              )}
 
-              {/* FIX: use `user` state (not ref) for rendering — React tracks this */}
+              {/* User avatar / sign-in */}
               {user ? (
-                <button
-                  onClick={() => setModal("profile")}
-                  style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--blue-pale)", border: "1.5px solid var(--blue-mid)", borderRadius: 24, padding: "6px 14px 6px 8px", cursor: "pointer" }}
-                >
+                <button onClick={() => setModal("profile")} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--blue-pale)", border: "1.5px solid var(--blue-mid)", borderRadius: 24, padding: "6px 14px 6px 8px", cursor: "pointer" }}>
                   {user.photoURL
                     ? <img src={user.photoURL} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} alt={user.name} />
                     : <div style={{ width: 28, height: 28, background: "var(--blue)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "white", flexShrink: 0 }}>{user.avatar || "?"}</div>
                   }
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--blue)" }} className="header-stat">
-                    {user.name?.split(" ")[0]}
-                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--blue)" }} className="header-stat">{user.name?.split(" ")[0]}</span>
                 </button>
               ) : (
-                <button className="btn btn-primary btn-sm" onClick={() => setModal("auth")}>
-                  Sign In
-                </button>
+                <button className="btn btn-primary btn-sm" onClick={() => setModal("auth")}>Sign In</button>
               )}
             </div>
           </div>
@@ -286,10 +265,10 @@ export default function App() {
             {/* Stats row */}
             <div className="grid-stats" style={{ marginBottom: 22 }}>
               {[
-                { icon: "🏎️", label: "Live Auctions",  val: cars.filter((c) => c.endTime > Date.now()).length },
-                { icon: "⚡",  label: "Bids Today",     val: totalBids },
-                { icon: "💰",  label: "Total Value",    val: formatCurrency(cars.reduce((s, c) => s + c.currentBid, 0)) },
-                { icon: "👥",  label: "Active Bidders", val: new Set(Object.values(bidHistory).flat().map((b) => b.userId)).size },
+                { icon: "🏎️", label: "Live Auctions",   val: cars.filter((c) => c.endTime > Date.now()).length },
+                { icon: "⚡",  label: "Bids Today",      val: totalBids },
+                { icon: "💰", label: "Total Value",      val: formatCurrency(cars.reduce((s, c) => s + c.currentBid, 0)) },
+                { icon: "👥", label: "Active Bidders",   val: new Set(Object.values(bidHistory).flat().map((b) => b.userId)).size },
               ].map((s) => (
                 <div key={s.label} className="card" style={{ padding: "16px 18px" }}>
                   <div style={{ fontSize: 20, marginBottom: 4 }}>{s.icon}</div>
@@ -301,6 +280,7 @@ export default function App() {
 
             {/* Toolbar */}
             <div className="card toolbar no-print" style={{ padding: "14px 16px", marginBottom: 20 }}>
+              {/* Tab switcher */}
               <div className="tab-bar" style={{ display: "flex", gap: 20, borderBottom: "none", paddingRight: 12, marginRight: 4, borderRight: "1px solid var(--border)" }}>
                 {[["live", "🔴 Live"], ["watchlist", "❤️ Saved"]].map(([k, l]) => (
                   <button key={k} className={`tab-btn${tab === k ? " active" : ""}`} onClick={() => setTab(k)} style={{ paddingBottom: 0, fontSize: 13 }}>{l}</button>
@@ -364,51 +344,44 @@ export default function App() {
         <div style={{ color: "var(--text4)", fontSize: 12, marginTop: 8 }}>© 2026 BidDrive. All rights reserved.</div>
       </footer>
 
-      {/* ── MOBILE NAV ── */}
+      {/* ── MOBILE BOTTOM NAV ── */}
       <nav className="mobile-nav no-print">
         {[["live", "🏎", "Live"], ["watchlist", "❤️", "Saved"], ["profile", "👤", "Account"]].map(([k, icon, label]) => (
-          <button
-            key={k}
-            className={`mobile-nav-btn${tab === k ? " active" : ""}`}
+          <button key={k} className={`mobile-nav-btn${tab === k ? " active" : ""}`}
             onClick={() => {
               if (k === "live" || k === "watchlist") { setTab(k); setDetailCar(null); }
-              else if (k === "profile") { if (!userRef.current) setModal("auth"); else setModal("profile"); }
-            }}
-          >
+              else if (k === "profile") { if (!user) setModal("auth"); else setModal("profile"); }
+            }}>
             <span className="icon">{icon}</span>
             <span>{label}</span>
           </button>
         ))}
+        {isAdmin && (
+          <button className="mobile-nav-btn" onClick={() => setAdminOpen(true)}>
+            <span className="icon">⚙️</span>
+            <span>Admin</span>
+          </button>
+        )}
       </nav>
 
       {/* ── MODALS ── */}
       {modal === "auth" && (
         <AuthModal
           firebaseReady={firebaseReady}
-          onAuth={onAuth}                    
-          onClose={() => {
-            setModal(null);
-            // Clear pending if user closes auth without logging in
-            pendingBidRef.current = null;
-            setPendingBidCar(null);
-          }}
+          onAuth={(u) => { setUser(u); setModal(null); showToast(`Welcome, ${u.name?.split(" ")[0]}! 👋`); }}
+          onClose={() => setModal(null)}
         />
       )}
-
       {modal === "bid" && bidCar && (
         <BidModal
-          car={bidCar}
-          user={user}
-          bidHistory={bidHistory}
+          car={bidCar} user={user} bidHistory={bidHistory}
           onClose={() => { setModal(null); setBidCar(null); }}
           onConfirm={handleBid}
         />
       )}
-
       {modal === "ai" && aiCar && (
         <AIAdvisor car={aiCar} user={user} onClose={() => { setModal(null); setAiCar(null); }} />
       )}
-
       {modal === "profile" && user && (
         <ProfilePanel user={user} bidHistory={bidHistory} cars={cars} onClose={() => setModal(null)} onLogout={handleLogout} />
       )}
@@ -428,6 +401,12 @@ export default function App() {
           {toast.message}
         </div>
       )}
+
+      {/* ── ADMIN PANEL ── */}
+      {adminOpen && isAdmin && (
+        <AdminPanel user={user} onClose={() => setAdminOpen(false)} />
+      )}
+
     </>
   );
 }
