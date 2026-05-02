@@ -5,7 +5,7 @@
  * Gives car-specific advice: valuation, inspection, bid strategy.
  * ─────────────────────────────────────────────────────────────
  */
-
+import React from 'react';
 import { useState, useRef, useEffect } from "react";
 import { formatCurrency } from "../utils/index.js";
 
