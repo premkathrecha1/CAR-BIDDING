@@ -1,4 +1,17 @@
-
+/**
+ * src/services/repositories.js
+ * ─────────────────────────────────────────────────────────────
+ * Firestore ORM — Repository pattern for all database operations.
+ * All CRUD flows through these named repos; no raw Firestore calls
+ * should appear in UI components.
+ *
+ * Repositories:
+ *   CarsRepo     — car listings
+ *   BidsRepo     — bid records
+ *   UsersRepo    — user profiles
+ *   PaymentsRepo — Razorpay payment records
+ * ─────────────────────────────────────────────────────────────
+ */
 
 // ── CarsRepo ─────────────────────────────────────────────────
 export const CarsRepo = {

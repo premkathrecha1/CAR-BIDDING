@@ -1,4 +1,11 @@
-
+/**
+ * src/models/index.js
+ * ============================================================
+ * Client-side data models for BidDrive.
+ * Defines the shape of data objects used throughout the app.
+ * In a full-stack setup these mirror the backend Firestore schema.
+ * ============================================================
+ */
 
 // ── Car Model ────────────────────────────────────────────────
 /**
@@ -35,9 +42,10 @@
  * @returns {CarModel}
  */
 export function createCarModel(overrides = {}) {
+  const _numId = overrides.numId ?? Math.floor(Math.random() * 9000 + 1000);
   return {
-    id:           null,
-    numId:        null,
+    id:           overrides.id ?? String(_numId),  // stable string key, never null
+    numId:        _numId,
     make:         "",
     model:        "",
     year:         new Date().getFullYear(),

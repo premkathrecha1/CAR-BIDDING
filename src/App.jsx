@@ -1,4 +1,25 @@
-
+/**
+ * src/App.js
+ * ============================================================
+ * BidDrive — Root application component.
+ *
+ * Responsibilities (orchestration only):
+ *  - Firebase initialisation on boot
+ *  - Global state: cars, bids, user, modals, filters
+ *  - Real-time bid simulation via useRealTimeBids hook
+ *  - Firestore writes after every user bid
+ *  - Routing between listing grid, detail page, and modals
+ *
+ * All UI, business logic, and data access is delegated to:
+ *  - src/components/   — UI components
+ *  - src/services/     — Firebase, Auth, Razorpay
+ *  - src/hooks/        — Custom React hooks
+ *  - src/models/       — Data shapes and seed data
+ *  - src/utils/        — Pure helper functions
+ *  - src/config/       — Firebase + Razorpay keys
+ *  - src/styles/       — Global CSS
+ * ============================================================
+ */
 import React from 'react';
 
 import { useState, useEffect }     from "react";
