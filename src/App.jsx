@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useRef } from "react";
 import "./styles/global.css";
 import React from "react";

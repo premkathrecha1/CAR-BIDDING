@@ -1,5 +1,4 @@
 
-
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDE-aBnNvDf1EAQ27gAbdR_18uFr5B55Io",
   authDomain: "biddrive-2963d.firebaseapp.com",
@@ -15,7 +14,8 @@ let _auth = null;
 let _firebaseInitPromise = null;
 
 /**
-
+ * Lazily initialises Firebase App, Firestore, and Auth.
+ * Safe to call multiple times — returns cached singletons.
  * @returns {Promise<{ db: Firestore|null, auth: Auth|null }>}
  */
 export async function initFirebase() {
@@ -44,7 +44,8 @@ export async function initFirebase() {
       _db   = getFirestore(app);
       _auth = getAuth(app);
 
-
+      // Expose all Firestore + Auth methods globally so repository files
+      // can import them without re-initialising Firebase each time.
       window._fs = {
         db: _db, auth: _auth,
         collection, doc, addDoc, updateDoc, getDocs, getDoc,
